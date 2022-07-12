@@ -11,7 +11,7 @@ def start(massage):
     mess=f'Привет, {massage.from_user.first_name}, чтобы узнать что я умею воспользуйся командой <b>/help</b>'
     bot.send_message(massage.chat.id, mess, parse_mode='html')
 
-@bot.message_handler(content_types=['photo'])
+@bot.message_handler(content_types=['data'])
 def get_user_photo(massage):
     bot.send_message(massage.chat.id, 'Не стоит скидывать мне картинки, я не хранилище и не ручаюсь за анонимность ;)', parse_mode='html')
 

@@ -17,12 +17,6 @@ def start(massage):
     bot.send_message(massage.chat.id, mess, parse_mode='html')
 
 
-@bot.message_handler(content_types=['photo'])
-def get_user_photo(massage):
-    bot.send_message(massage.chat.id, 'Не стоит скидывать мне картинки, я не хранилище и не ручаюсь за анонимность ;)',
-                     parse_mode='html')
-
-
 @bot.message_handler(commands=['help'])
 def website(massage):
     markup = types.ReplyKeyboardMarkup()
@@ -42,6 +36,14 @@ def get_user_text(massage):
         bot.send_message(massage.chat.id, f'Сегодняшняя дата и время: {mess_time}', parse_mode='html')
     else:
         bot.send_message(massage.chat.id, 'Я не понимаю что ты хочешь', parse_mode='html')
+
+
+@bot.message_handler(content_types=['photo'])
+def get_user_photo(message):
+    file_info = bot.get_file(message.photo[len(message.photo) - 1].file_id)
+    with open('E:\pythonProject1\data\\' + message.photo[0].file_id + '.jpg', 'wb') as file:
+        file.write(bot.download_file(file_info.file_path))
+    bot.send_message(message.chat.id, 'Фото сохранил', parse_mode='html')
 
 
 bot.polling(none_stop=True)
