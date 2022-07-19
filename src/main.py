@@ -1,6 +1,7 @@
 import datetime
 import os
 import telebot
+import os.path
 
 from dotenv import load_dotenv
 from Functions import website
@@ -19,7 +20,7 @@ def user_start(massage):
     start(massage)
 
 
-@bot.message_handler(commands=['help'])
+@bot.message_handler(commands=['Начать'])
 def help(massage):
     website(massage)
 

@@ -2,6 +2,7 @@ import datetime
 import os
 import telebot
 import pathlib
+import os.path
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -12,6 +13,7 @@ load_dotenv()
 mess_time = datetime.datetime.now()
 bot = telebot.TeleBot(os.getenv('SECRET_KEY'))
 
+b=bot.send_message
 
 def website(massage):
     markup = types.ReplyKeyboardMarkup()
@@ -19,36 +21,41 @@ def website(massage):
     get_photo = types.KeyboardButton('Получить мои фото')
     save_photo = types.KeyboardButton('Сохранить мои фото')
     markup.add(Date, get_photo, save_photo)
-    bot.send_message(massage.chat.id, 'Выбери пункт', reply_markup=markup)
+    b(massage.chat.id, 'Выбери пункт', reply_markup=markup)
 
 
 def start(massage):
     markup1 = types.ReplyKeyboardMarkup()
     ID = types.KeyboardButton('Зарегестрироваться')
     markup1.add(ID)
-    bot.send_message(massage.chat.id, f'Привет, {massage.from_user.first_name}, для начала давай зарегестрируемся',
-                     reply_markup=markup1)
+    b(massage.chat.id, f'Привет, {massage.from_user.first_name}, давай зарегестрируемся', reply_markup=markup1)
 
 
 def user_text(massage):
-    markup2 = types.ReplyKeyboardMarkup()
-    help = types.KeyboardButton("/help")
-    markup2.add(help)
+
+    markup_help = types.ReplyKeyboardMarkup()
+    help = types.KeyboardButton("/Начать")
+    markup_help.add(help)
+
     if massage.text == "Привет":
-        bot.send_message(massage.chat.id, 'И тебе привет', parse_mode='html')
+        b(massage.chat.id, 'И тебе привет', parse_mode='html')
     elif massage.text == "Зарегестрироваться":
-        path = Path('data', f'telegram-{massage.chat.id}')
-        os.mkdir(path)
-        bot.send_message(massage.chat.id, f'Отлично, теперь используй команду help чтобы начать работу',
-                         reply_markup=markup2)
+        user_path = Path('data', f'telegram-{massage.chat.id}')
+        if os.path.exists(f'{user_path}') == True:
+            b(massage.chat.id, 'Вы уже зарегестрированны', reply_markup=markup_help)
+        else:
+            path = Path('data', f'telegram-{massage.chat.id}')
+            os.mkdir(path)
+            b(massage.chat.id, f'Отлично, ты зарегестрирован, можешь начать работу со мной', reply_markup=markup_help)
+
     elif massage.text == "Дата и время":
-        bot.send_message(massage.chat.id, f'Сегодняшняя дата и время: {mess_time}', parse_mode='html')
+        b(massage.chat.id, f'Сегодняшняя дата и время: {mess_time}', parse_mode='html')
     elif massage.text == "Сохранить мои фото":
-        bot.send_message(massage.chat.id, 'Можешь скинуть своё фото и я его сохраню', parse_mode='html')
+        b(massage.chat.id, 'Можешь скинуть своё фото и я его сохраню', parse_mode='html')
     elif massage.text == 'Получить мои фото':
-        bot.send_message(massage.chat.id, 'Я не понимаю что ты хочешь', parse_mode='html')
+        b(massage.chat.id, 'Я не понимаю что ты хочешь', parse_mode='html')
     else:
-        bot.send_message(massage.chat.id, 'Я не понимаю что ты хочешь', parse_mode='html')
+        b(massage.chat.id, 'Я не понимаю что ты хочешь', parse_mode='html')
 
 
 def user_photo(massage):
@@ -56,4 +63,4 @@ def user_photo(massage):
     path = Path('data', f'telegram-{massage.chat.id}')
     with open(f'{path}\\' + massage.photo[0].file_id + '.jpg', 'wb') as file:
         file.write(bot.download_file(file_info.file_path))
-    bot.send_message(massage.chat.id, 'Фото сохранил', parse_mode='html')
+    b(massage.chat.id, 'Фото сохранил', parse_mode='html')
