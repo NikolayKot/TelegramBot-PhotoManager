@@ -15,15 +15,20 @@ mess_time = datetime.datetime.now()
 bot = telebot.TeleBot(os.getenv('SECRET_KEY'))
 
 b = bot.send_message
+PARSE_MOD = 'html'
+markup = types.ReplyKeyboardMarkup()
 
 
 def website(massage):
-    markup = types.ReplyKeyboardMarkup()
     Date = types.KeyboardButton("Дата и время")
     get_photo = types.KeyboardButton('Получить мои фото')
     save_photo = types.KeyboardButton('Сохранить мои фото')
     markup.add(Date, get_photo, save_photo)
     b(massage.chat.id, 'Выбери пункт', reply_markup=markup)
+
+
+def bot_send_message(massage, message, parse_mode=PARSE_MOD):
+    bot.send_message(massage.chat.id, message, parse_mode=parse_mode, reply_markup=markup)
 
 
 def start(massage):
@@ -34,25 +39,25 @@ def start(massage):
 
 
 def user_text(massage):
+    text='Я не понимаю что ты хочешь'
     markup_help = types.ReplyKeyboardMarkup()
     help = types.KeyboardButton("/Начать")
     markup_help.add(help)
 
     if massage.text == "Привет":
-        b(massage.chat.id, 'И тебе привет', parse_mode='html')
+        text = 'И тебе привет'
     elif massage.text == "Зарегестрироваться":
         user_path = Path('data', f'telegram-{massage.chat.id}')
         if os.path.exists(f'{user_path}'):
-            b(massage.chat.id, 'Вы уже зарегестрированны', reply_markup=markup_help)
+            text = 'Вы уже зарегестрированны'
         else:
             path = Path('data', f'telegram-{massage.chat.id}')
             os.mkdir(path)
-            b(massage.chat.id, f'Отлично, ты зарегестрирован, можешь начать работу со мной', reply_markup=markup_help)
-
+            text = 'Отлично, ты зарегестрирован, можешь начать работу со мной'
     elif massage.text == "Дата и время":
-        b(massage.chat.id, f'Сегодняшняя дата и время: {mess_time}', parse_mode='html')
+        text = f'Сегодняшняя дата и время: {mess_time}'
     elif massage.text == "Сохранить мои фото":
-        b(massage.chat.id, 'Можешь скинуть своё фото и я его сохраню', parse_mode='html')
+        text = 'Можешь скинуть своё фото и я его сохраню'
     elif massage.text == 'Получить мои фото':
         user_path = Path('data', f'telegram-{massage.chat.id}')
         archived_folders = [f"{user_path}"]
@@ -74,9 +79,8 @@ def user_text(massage):
         bot.send_document(massage.chat.id, file_to_send)
         file_to_send.close()
         os.remove(f'{delete_path}')
-        b(massage.chat.id, 'Вот все твои фото', parse_mode='html')
-    else:
-        b(massage.chat.id, 'Я не понимаю что ты хочешь', parse_mode='html')
+        text = 'Вот все твои фото'
+    bot_send_message(massage, text)
 
 
 def user_photo(massage):
