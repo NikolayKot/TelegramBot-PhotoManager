@@ -19,6 +19,22 @@ PARSE_MOD = 'html'
 markup = types.ReplyKeyboardMarkup()
 
 
+def add(*args):
+    global markup
+    markup = types.ReplyKeyboardMarkup()
+
+    for i in args:
+        markup.add(i)
+    markup.add(types.KeyboardButton('/Начать'))
+
+
+@bot.message_handler(commands=['start'])
+def start(massage):
+    add(types.KeyboardButton('Зарегестрироваться'))
+    b(massage.chat.id, f'Привет, {massage.from_user.first_name}, давай зарегестрируемся')
+
+
+@bot.message_handler(commands=['Начать'])
 def website(massage):
     Date = types.KeyboardButton("Дата и время")
     get_photo = types.KeyboardButton('Получить мои фото')
@@ -31,19 +47,9 @@ def bot_send_message(massage, message, parse_mode=PARSE_MOD):
     bot.send_message(massage.chat.id, message, parse_mode=parse_mode, reply_markup=markup)
 
 
-def start(massage):
-    markup1 = types.ReplyKeyboardMarkup()
-    ID = types.KeyboardButton('Зарегестрироваться')
-    markup1.add(ID)
-    b(massage.chat.id, f'Привет, {massage.from_user.first_name}, давай зарегестрируемся', reply_markup=markup1)
-
-
+@bot.message_handler(content_types=['text'])
 def user_text(massage):
-    text='Я не понимаю что ты хочешь'
-    markup_help = types.ReplyKeyboardMarkup()
-    help = types.KeyboardButton("/Начать")
-    markup_help.add(help)
-
+    text = 'Я не понимаю что ты хочешь'
     if massage.text == "Привет":
         text = 'И тебе привет'
     elif massage.text == "Зарегестрироваться":
@@ -83,6 +89,7 @@ def user_text(massage):
     bot_send_message(massage, text)
 
 
+@bot.message_handler(content_types=['photo'])
 def user_photo(massage):
     file_info = bot.get_file(massage.photo[len(massage.photo) - 1].file_id)
     path = Path('data', f'telegram-{massage.chat.id}')
