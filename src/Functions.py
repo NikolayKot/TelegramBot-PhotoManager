@@ -17,10 +17,9 @@ bot = telebot.TeleBot(os.getenv('SECRET_KEY'))
 
 PARSE_MOD = 'html'
 markup = types.ReplyKeyboardMarkup()
-album_name = ''
 
 
-def add(*args):                 # TODO обсудить проблему дублирования кнопок, как я понял они так делают из-за это срани
+def add(*args):               # TODO обсудить проблему дублирования кнопок, как я понял они так делают из-за это срани
     global markup
     markup = types.KeyboardButton()
 
@@ -35,20 +34,6 @@ def bot_send_message(telegram_object, message, parse_mode=PARSE_MOD):
 
 def approved_album(message):
     bot.send_message(message.chat.id, 'Да-да')
-
-
-def create_new_album(message):
-    global album_name
-    album_name = message.text
-    key_yes = types.KeyboardButton('|Да.|')
-    key_no = types.KeyboardButton('|Нет.|')
-    markup.add(key_yes, key_no)
-    bot.send_message(message.chat.id, f'Вы назвали альбом как: {album_name}', reply_markup=markup)
-    # Проверка имени на корректность
-    # Существует ли уже такой альбом у пользователя
-    # Создаём альбом
-    # Сообщение о успешном создании альбома
-    # Перенаправление на меню
 
 
 def archivate(arch, folders_list, mode):

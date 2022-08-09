@@ -5,13 +5,12 @@ import os.path
 
 from dotenv import load_dotenv
 from Functions import *
-
 load_dotenv()
 
 mess_time = datetime.datetime.now()
 bot = telebot.TeleBot(os.getenv('SECRET_KEY'))
 album_name = ''
-
+menu_key = types.KeyboardButton('/Menu')
 
 @bot.message_handler(commands=['help'])
 def help_command(message):
@@ -33,18 +32,29 @@ def init_new_album(message):
     bot.register_next_step_handler(message, create_new_album)
 
 
+def create_new_album(message):
+    global album_name
+    album_name = message.text
+    key_yes = types.KeyboardButton('|Да.|')
+    key_no = types.KeyboardButton('|Нет.|')
+    markup.add(key_yes, key_no)
+    bot.send_message(message.chat.id, f'Вы назвали альбом как: {album_name}', reply_markup=markup)
+    # Проверка имени на корректность
+
+
 @bot.message_handler(commands=['Menu'])
 def website(message):
-    make_album = types.KeyboardButton("Создать альбом")
+    help_butt = types.KeyboardButton("/help")
     date = types.KeyboardButton("Дата и время")
     get_photo = types.KeyboardButton('Получить мои фото')
     save_photo = types.KeyboardButton('Сохранить мои фото')
-    markup.add(date, get_photo, save_photo, make_album)
+    markup.add(date, get_photo, save_photo, help_butt)
     bot_send_message(message, 'Выбери пункт')
 
 
 @bot.message_handler(func=lambda m: True)
 def user_text(message):
+    global menu_key
     text = 'Я не понимаю что ты хочешь'
     if message.text == "Привет":
         text = 'И тебе привет'
@@ -69,12 +79,21 @@ def user_text(message):
         os.remove(Path(arch_name))
         text = 'Вот все твои фото'
     elif message.text == '|Да.|':
-        text = 'Да-да'
+        path = Path('data', f'telegram-{message.chat.id}', f'{album_name}')
+        if os.path.exists(f'{path}'):
+            new_album_key = types.KeyboardButton('/new_album')
+            markup.add(menu_key, new_album_key)
+            text = 'Нажми на кнопку Menu или создай новый альбом при помощи кнопки new_album'
+            bot.send_message(message.chat.id, 'Такой альбом уже существует', reply_markup=markup)
+        else:
+            os.mkdir(path)
+            text = 'Ты можешь воспользоваться кнопкой Menu'
+            markup.add(menu_key)
+            bot.send_message(message.chat.id,'Альбом создан',reply_markup=markup)
     elif message.text == '|Нет.|':
         text = 'Просто выбери один из вариантов'
         key_new_name = types.KeyboardButton('/new_album')
-        key_another_func = types.KeyboardButton('/Menu')
-        markup.add(key_new_name, key_another_func)
+        markup.add(key_new_name, menu_key)
         bot.send_message(message.chat.id,
                          'Ты можешь придумать иное название, или использовать другие функции',
                          reply_markup=markup)
