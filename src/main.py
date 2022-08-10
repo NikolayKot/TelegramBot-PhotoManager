@@ -50,8 +50,7 @@ def download_to_album(message):
     if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{download_album_name}')):
         bot_send_message(message, f'Теперь можешь скинуть сюда свои фото и я сохраню их в {download_album_name}')
     else:
-        bot_send_message(message, 'Такого альбома не существует, проверте правильность ввода')
-#       bot.register_next_step_handler(message, download_to_album)
+        bot_send_message(message, 'Такого альбома не существует, проверте ')
 
 
 def upload_album(message):
