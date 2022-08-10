@@ -10,6 +10,8 @@ load_dotenv()
 mess_time = datetime.datetime.now()
 bot = telebot.TeleBot(os.getenv('SECRET_KEY'))
 album_name = ''
+download_album_name = ''
+upload_album_name = ''
 menu_key = types.KeyboardButton('/Menu')
 
 @bot.message_handler(commands=['help'])
@@ -42,6 +44,30 @@ def create_new_album(message):
     # Проверка имени на корректность
 
 
+def download_to_album(message):
+    global download_album_name
+    download_album_name = message.text
+    if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{download_album_name}')):
+        bot_send_message(message, f'Теперь можешь скинуть сюда свои фото и я сохраню их в {download_album_name}')
+    else:
+        bot_send_message(message, 'Такого альбома не существует, проверте правильность ввода')
+#       bot.register_next_step_handler(message, download_to_album)
+
+
+def upload_album(message):
+    global upload_album_name
+    upload_album_name = message.text
+    archived_folders = [Path('data', f'telegram-{message.chat.id}', f'{upload_album_name}')]
+    if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{upload_album_name}')):
+        arch_name = "Telegram_photo" + ".zip"
+        archivate(arch_name, archived_folders, "w")
+        with open(Path(f'{arch_name}'), 'rb') as file:    # TODO путь абсоюлтный сделать!
+            bot.send_document(message.chat.id, file)
+        os.remove(Path(arch_name))
+    else:
+        bot_send_message(message, 'Такой альбом не существует, проверьте корректность ввода')
+
+
 @bot.message_handler(commands=['Menu'])
 def website(message):
     help_butt = types.KeyboardButton("/help")
@@ -69,15 +95,11 @@ def user_text(message):
     elif message.text == "Дата и время":
         text = f'Сегодняшняя дата и время: {mess_time}'
     elif message.text == "Сохранить мои фото":
-        text = 'Можешь скинуть своё фото и я его сохраню'
+        text = 'Напиши название альбома в который хочешь сохранить'
+        bot.register_next_step_handler(message, download_to_album)
     elif message.text == 'Получить мои фото':
-        archived_folders = [Path('data', f'telegram-{message.chat.id}')]
-        arch_name = "Telegram_photo" + ".zip"
-        archivate(arch_name, archived_folders, "w")
-        with open(f'E:/pythonProject1/{arch_name}', 'rb') as file:  # TODO путь абсоюлтный сделать!
-            bot.send_document(message.chat.id, file)
-        os.remove(Path(arch_name))
-        text = 'Вот все твои фото'
+        text = 'Напиши название альбома который хочешь получить'
+        bot.register_next_step_handler(message, upload_album)
     elif message.text == '|Да.|':
         path = Path('data', f'telegram-{message.chat.id}', f'{album_name}')
         if os.path.exists(f'{path}'):
@@ -103,11 +125,14 @@ def user_text(message):
 
 @bot.message_handler(content_types=['photo'])
 def user_photo(message):
-    file_info = bot.get_file(message.photo[len(message.photo) - 1].file_id)
-    path = Path('data', f'telegram-{message.chat.id}')
-    with open(f'{path}\\' + message.photo[0].file_id + '.jpg', 'wb') as file:
-        file.write(bot.download_file(file_info.file_path))
-    bot_send_message(message, 'Фото сохранил')
+    path = Path('data', f'telegram-{message.chat.id}', f'{download_album_name}')
+    if os.path.exists(f'{path}'):
+        file_info = bot.get_file(message.photo[len(message.photo) - 1].file_id)
+        with open(f'{path}\\' + message.photo[0].file_id + '.jpg', 'wb') as file:
+            file.write(bot.download_file(file_info.file_path))
+        bot_send_message(message, 'Фото сохранил')
+    else:
+        bot_send_message(message, f'Вы пытаетесть сохранить фото в несуществующий альбом')
 
 
 bot.polling(none_stop=True)
