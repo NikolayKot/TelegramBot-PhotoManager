@@ -14,6 +14,7 @@ download_album_name = ''
 upload_album_name = ''
 menu_key = types.KeyboardButton('/Menu')
 
+
 @bot.message_handler(commands=['help'])
 def help_command(message):
     bot_send_message(message, """
@@ -37,10 +38,8 @@ def init_new_album(message):
 def create_new_album(message):
     global album_name
     album_name = message.text
-    key_yes = types.KeyboardButton('|Да.|')
-    key_no = types.KeyboardButton('|Нет.|')
-    markup.add(key_yes, key_no)
-    bot.send_message(message.chat.id, f'Вы назвали альбом как: {album_name}', reply_markup=markup)
+    add(types.KeyboardButton('|Да.|'), types.KeyboardButton('|Нет.|'))
+    bot_send_message(message, f'Вы назвали альбом как: {album_name}?')
     # Проверка имени на корректность
 
 
@@ -50,8 +49,8 @@ def download_to_album(message):
     if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{download_album_name}')):
         bot_send_message(message, f'Теперь можешь скинуть сюда свои фото и я сохраню их в {download_album_name}')
     else:
+        add(types.KeyboardButton('Сохранить мои фото'))
         bot_send_message(message, 'Такого альбома не существует, проверте правильность ввода')
-#       bot.register_next_step_handler(message, download_to_album)
 
 
 def upload_album(message):
@@ -61,21 +60,19 @@ def upload_album(message):
     if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{upload_album_name}')):
         arch_name = "Telegram_photo" + ".zip"
         archivate(arch_name, archived_folders, "w")
-        with open(Path(f'{arch_name}'), 'rb') as file:    # TODO путь абсоюлтный сделать!
+        with open(Path(f'{arch_name}'), 'rb') as file:
             bot.send_document(message.chat.id, file)
         os.remove(Path(arch_name))
     else:
+        add(types.KeyboardButton('Получить мои фото'))
         bot_send_message(message, 'Такой альбом не существует, проверьте корректность ввода')
 
 
 @bot.message_handler(commands=['Menu'])
 def website(message):
-    help_butt = types.KeyboardButton("/help")
-    date = types.KeyboardButton("Дата и время")
-    get_photo = types.KeyboardButton('Получить мои фото')
-    save_photo = types.KeyboardButton('Сохранить мои фото')
-    markup.add(date, get_photo, save_photo, help_butt)
-    bot_send_message(message, 'Выбери пункт')
+    add(types.KeyboardButton("/help"), types.KeyboardButton("Дата и время"), types.KeyboardButton('Получить мои фото'),
+        types.KeyboardButton('Сохранить мои фото'))
+    bot_send_message(message, 'Выбири пункт')
 
 
 @bot.message_handler(func=lambda m: True)
@@ -95,30 +92,31 @@ def user_text(message):
     elif message.text == "Дата и время":
         text = f'Сегодняшняя дата и время: {mess_time}'
     elif message.text == "Сохранить мои фото":
+        bot_send_message(message, 'Вот какие альбомы уже существуют:')
+        with os.scandir(Path('data', f'telegram-{message.chat.id}')) as it:
+            for entry in it:
+                bot_send_message(message, f'<b>{entry.name}</b>')
         text = 'Напиши название альбома в который хочешь сохранить'
         bot.register_next_step_handler(message, download_to_album)
     elif message.text == 'Получить мои фото':
+        bot_send_message(message, 'Вот какие альбомы уже существуют:')
+        with os.scandir(Path('data', f'telegram-{message.chat.id}')) as it:
+            for entry in it:
+                bot_send_message(message, f'<b>{entry.name}</b>')
         text = 'Напиши название альбома который хочешь получить'
         bot.register_next_step_handler(message, upload_album)
     elif message.text == '|Да.|':
         path = Path('data', f'telegram-{message.chat.id}', f'{album_name}')
         if os.path.exists(f'{path}'):
-            new_album_key = types.KeyboardButton('/new_album')
-            markup.add(menu_key, new_album_key)
-            text = 'Нажми на кнопку Menu или создай новый альбом при помощи кнопки new_album'
-            bot.send_message(message.chat.id, 'Такой альбом уже существует', reply_markup=markup)
+            add(types.KeyboardButton('/new_album'))
+            text = 'Такой альбом уже существует, ты можешь создать другой альбом или перейти в меню'
         else:
             os.mkdir(path)
-            text = 'Ты можешь воспользоваться кнопкой Menu'
-            markup.add(menu_key)
-            bot.send_message(message.chat.id,'Альбом создан',reply_markup=markup)
+            add()
+            text = 'Альбом создан'
     elif message.text == '|Нет.|':
-        text = 'Просто выбери один из вариантов'
-        key_new_name = types.KeyboardButton('/new_album')
-        markup.add(key_new_name, menu_key)
-        bot.send_message(message.chat.id,
-                         'Ты можешь придумать иное название, или использовать другие функции',
-                         reply_markup=markup)
+        text = 'Хорошо, ты можешь создать другой альбом или перейти в меню'
+        add(types.KeyboardButton('/new_album'))
 
     bot_send_message(message, text)
 

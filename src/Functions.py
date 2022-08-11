@@ -16,12 +16,12 @@ mess_time = datetime.datetime.now()
 bot = telebot.TeleBot(os.getenv('SECRET_KEY'))
 
 PARSE_MOD = 'html'
-markup = types.ReplyKeyboardMarkup()
+markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
 
-def add(*args):               # TODO обсудить проблему дублирования кнопок, как я понял они так делают из-за это срани
+def add(*args):
     global markup
-    markup = types.KeyboardButton()
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     for i in args:
         markup.add(i)
