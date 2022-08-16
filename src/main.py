@@ -10,8 +10,9 @@ load_dotenv()
 mess_time = datetime.datetime.now()
 bot = telebot.TeleBot(os.getenv('SECRET_KEY'))
 album_name = ''
-download_album_name = ''
-upload_album_name = ''
+delete_album_name = ''
+download_album_name = 'Общий'
+upload_album_name = 'Общий'
 menu_key = types.KeyboardButton('/Menu')
 
 
@@ -40,14 +41,13 @@ def create_new_album(message):
     album_name = message.text
     add(types.KeyboardButton('|Да.|'), types.KeyboardButton('|Нет.|'))
     bot_send_message(message, f'Вы назвали альбом как: {album_name}?')
-    # Проверка имени на корректность
 
 
 def download_to_album(message):
     global download_album_name
     download_album_name = message.text
     if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{download_album_name}')):
-        bot_send_message(message, f'Теперь можешь скинуть сюда свои фото и я сохраню их в {download_album_name}')
+        bot_send_message(message, f'Теперь можешь скинуть сюда свои фото и я сохраню их в <b>{download_album_name}</b>')
     else:
         add(types.KeyboardButton('Сохранить мои фото'))
         bot_send_message(message, 'Такого альбома не существует, проверте правильность ввода')
@@ -68,10 +68,22 @@ def upload_album(message):
         bot_send_message(message, 'Такой альбом не существует, проверьте корректность ввода')
 
 
+def delete_album(message):
+    global delete_album_name
+    delete_album_name = message.text
+    if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{delete_album_name}')):
+        os.rmdir(Path('data', f'telegram-{message.chat.id}', f'{delete_album_name}'))
+        bot_send_message(message, f'Альбом {delete_album_name} удалён')
+        add()
+    else:
+        add()
+        bot_send_message(message, 'Такой альбом не существует')
+
+
 @bot.message_handler(commands=['Menu'])
 def website(message):
     add(types.KeyboardButton("/help"), types.KeyboardButton("Дата и время"), types.KeyboardButton('Получить мои фото'),
-        types.KeyboardButton('Сохранить мои фото'))
+        types.KeyboardButton('Сохранить мои фото'), types.KeyboardButton('Удалить альбом'))
     bot_send_message(message, 'Выбири пункт')
 
 
@@ -85,10 +97,12 @@ def user_text(message):
         user_path = Path('data', f'telegram-{message.chat.id}')
         if os.path.exists(f'{user_path}'):
             text = 'Вы уже зарегестрированны'
+            add()
         else:
-            os.mkdir(
-                path=Path('data', f'telegram-{message.chat.id}'))  # path = Path('data', f'telegram-{message.chat.id}')
+            os.mkdir(path=Path('data', f'telegram-{message.chat.id}'))
+            os.mkdir(path=Path('data', f'telegram-{message.chat.id}', 'Общий'))
             text = 'Отлично, ты зарегестрирован, можешь начать работу со мной'
+            add()
     elif message.text == "Дата и время":
         text = f'Сегодняшняя дата и время: {mess_time}'
     elif message.text == "Сохранить мои фото":
@@ -102,9 +116,19 @@ def user_text(message):
         bot_send_message(message, 'Вот какие альбомы уже существуют:')
         with os.scandir(Path('data', f'telegram-{message.chat.id}')) as it:
             for entry in it:
+                # markup = types.InlineKeyboardMarkup()
+                # markup.add(types.InlineKeyboardButton(text=f'{entry.name}', callback_data='_'))
+                # bot.send_message(message.from_user.id, "-----", reply_markup=markup)
                 bot_send_message(message, f'<b>{entry.name}</b>')
         text = 'Напиши название альбома который хочешь получить'
         bot.register_next_step_handler(message, upload_album)
+    elif message.text == 'Удалить альбом':
+        bot_send_message(message, 'Вот какие альбомы уже существуют:')
+        with os.scandir(Path('data', f'telegram-{message.chat.id}')) as it:
+            for entry in it:
+                bot_send_message(message, f'<b>{entry.name}</b>')
+        text = 'Напиши название альбома который хочешь удалить'
+        bot.register_next_step_handler(message, delete_album)
     elif message.text == '|Да.|':
         path = Path('data', f'telegram-{message.chat.id}', f'{album_name}')
         if os.path.exists(f'{path}'):
@@ -130,7 +154,7 @@ def user_photo(message):
             file.write(bot.download_file(file_info.file_path))
         bot_send_message(message, 'Фото сохранил')
     else:
-        bot_send_message(message, f'Вы пытаетесть сохранить фото в несуществующий альбом')
+        bot_send_message(message, f'Вы пытаетесть сохранить фото в альбом {upload_album_name}, а он несуществует')
 
 
 bot.polling(none_stop=True)
