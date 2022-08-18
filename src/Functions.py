@@ -4,11 +4,12 @@ import telebot
 import pathlib
 import os.path
 import zipfile
+import shutil
 
 from pathlib import Path
 from dotenv import load_dotenv
 from telebot import types
-
+from telebot.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 
 load_dotenv()
 
@@ -43,3 +44,4 @@ def archivate(arch, folders_list, mode):
             for file in files:
                 zip.write(os.path.join(root, file))  # path = os.path.join(root, file)
     zip.close()
+
