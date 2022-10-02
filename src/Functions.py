@@ -45,3 +45,19 @@ def archivate(arch, folders_list, mode):
                 zip.write(os.path.join(root, file))  # path = os.path.join(root, file)
     zip.close()
 
+
+def create_new_album(message):
+    album_name = message.text
+    bot_send_message(message, f'Вы назвали альбом как: {album_name}')
+    path = Path('data', f'telegram-{message.chat.id}', f'{album_name}')
+    if os.path.exists(f'{path}'):
+        add(types.KeyboardButton('/new_album'))
+        text = 'Такой альбом уже существует, ты можешь создать другой альбом или перейти в меню'
+    elif album_name == '/Menu':
+        text = 'Нельзя назвать альбом /Menu'
+    else:
+        os.mkdir(path)
+        text = 'Альбом создан'
+    add()
+    bot_send_message(message, text)
+
