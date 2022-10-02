@@ -40,45 +40,9 @@ def callback_query(call):
         elif xyi == 'Получить мои фото':
             upload_album(call.message)
         elif xyi == 'Просмотреть мои фото':
-            watch_album(call.message)                       #TODO НЕ РАБОТАЕТ СУКА
+            watch_album(call)                       #TODO НЕ РАБОТАЕТ СУКА
         elif xyi == 'Удалить альбом':
             delete_album(call.message)
-    req = call.data.split('_')
-    images = os.listdir(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}'))
-    # Обработка кнопки - скрыть
-    if req[0] == 'unseen':
-        bot.delete_message(call.message.chat.id, call.message.message_id)
-    # Обработка кнопок - вперед и назад
-    elif 'pagination' in req[0]:
-        json_string = json.loads(req[0])
-        count = json_string['CountPage']
-        page = json_string['NumberPage']
-        markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton(text='Скрыть', callback_data='unseen'))
-        # markup для первой страницы
-        if page == 0:
-            markup.add(InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
-                       InlineKeyboardButton(text=f'Вперёд --->',
-                                            callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
-                                                page + 1) + ",\"CountPage\":" + str(count) + "}"))
-        # markup для второй страницы
-        elif page == count - 1:
-            markup.add(InlineKeyboardButton(text=f'<--- Назад',
-                                            callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
-                                                page - 1) + ",\"CountPage\":" + str(count) + "}"),
-                       InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '))
-        # markup для остальных страниц
-        else:
-            markup.add(InlineKeyboardButton(text=f'<--- Назад',
-                                            callback_data="{\"method\":\"pagination\",\"NumberPage\":"
-                                                          + str(page - 1) + ",\"CountPage\":" + str(count) + "}"),
-                       InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
-                       InlineKeyboardButton(text=f'Вперёд --->',
-                                            callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
-                                                page + 1) + ",\"CountPage\":" + str(count) + "}"))
-        img = open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'), 'rb')
-        bot.edit_message_media(media=telebot.types.InputMedia(media=img, caption=f"Фото номер {page}", type="photo"),
-                               reply_markup=markup, chat_id=call.message.chat.id, message_id=call.message.message_id)
 
 
 @bot.message_handler(commands=['start'])
@@ -169,18 +133,18 @@ def delete_album(message):
     bot_send_message(message, text)
 
 
-def watch_album(message):
-    if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{album_name}')):
-        images = os.listdir(Path('data', f'telegram-{message.chat.id}', f'{album_name}'))
+def watch_album(call):
+    if os.path.exists(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}')):
+        images = os.listdir(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}'))
         count = len(images)
         markup = InlineKeyboardMarkup()
         page = 0
         if count == 0:
-            bot_send_message(message, 'Альбом пуст')
+            bot_send_message(call.message, 'Альбом пуст')
         elif count == 1:
             markup.add(InlineKeyboardButton(text='Скрыть', callback_data='unseen'))
-            bot.send_photo(message.from_user.id,
-                           photo=open(Path('data', f'telegram-{message.chat.id}', f'{album_name}',
+            bot.send_photo(call.message.chat.id,
+                           photo=open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}',
                                       f'{images[page]}'),
                                       'rb'), reply_markup=markup)
         else:
@@ -191,12 +155,13 @@ def watch_album(message):
                                                                                + str(page + 1) + ",\"CountPage\":" +
                                                                                str(
                                                                                 count) + "}"))
-            bot.send_photo(message.from_user.id,
-                           photo=open(Path('data', f'telegram-{message.chat.id}', f'{album_name}',
+            bot.send_photo(call.message.chat.id,
+                           photo=open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}',
                                       f'{images[page]}'),
                                       'rb'), reply_markup=markup)
     else:
-        bot_send_message(message, 'Такого альбома не существует')
+        bot_send_message(call.message, 'Такого альбома не существует')
+
 
 
 def download_to_album(message):
