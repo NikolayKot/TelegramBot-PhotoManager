@@ -5,6 +5,7 @@ import pathlib
 import os.path
 import zipfile
 import shutil
+import json
 
 from pathlib import Path
 from dotenv import load_dotenv
@@ -20,6 +21,14 @@ PARSE_MOD = 'html'
 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
 
+def is_json(myjson):
+    try:
+        json_object = json.loads(myjson)
+    except ValueError as e:
+        return False
+    return True
+
+
 def add(*args):
     global markup
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -31,10 +40,6 @@ def add(*args):
 
 def bot_send_message(telegram_object, message, parse_mode=PARSE_MOD):
     bot.send_message(telegram_object.chat.id, message, parse_mode=parse_mode, reply_markup=markup)
-
-
-def approved_album(message):
-    bot.send_message(message.chat.id, 'Да-да')
 
 
 def archivate(arch, folders_list, mode):
@@ -50,14 +55,18 @@ def create_new_album(message):
     album_name = message.text
     bot_send_message(message, f'Вы назвали альбом как: {album_name}')
     path = Path('data', f'telegram-{message.chat.id}', f'{album_name}')
-    if os.path.exists(f'{path}'):
-        add(types.KeyboardButton('/new_album'))
-        text = 'Такой альбом уже существует, ты можешь создать другой альбом или перейти в меню'
-    elif album_name == '/Menu':
-        text = 'Нельзя назвать альбом /Menu'
+    name_of_album = []
+    for i in album_name:
+        name_of_album.append(i)
+    if name_of_album[0] == '/':
+        text = 'Нельзя создавать альбомы со "/" первым символом'
     else:
-        os.mkdir(path)
-        text = 'Альбом создан'
+        if os.path.exists(f'{path}'):
+            add(types.KeyboardButton('/new_album'))
+            text = 'Такой альбом уже существует, ты можешь создать другой альбом или перейти в меню'
+        else:
+            os.mkdir(path)
+            text = 'Альбом создан'
     add()
     bot_send_message(message, text)
 

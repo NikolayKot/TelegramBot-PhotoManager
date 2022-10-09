@@ -2,6 +2,7 @@ import os
 import telebot
 import os.path
 import json
+import glob
 
 from dotenv import load_dotenv
 from Functions import *
@@ -12,13 +13,12 @@ from telebot.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeybo
 mess_time = datetime.datetime.now()
 bot = telebot.TeleBot(os.getenv('SECRET_KEY'))
 album_name = 'Общий'
-delete_album_name = ''
-xyi = ''
+command = ''
 
 
 def album_worker(message):
-    global xyi
-    xyi = message.text
+    global command
+    command = message.text
     markup = InlineKeyboardMarkup()
     with os.scandir(Path('data', f'telegram-{message.chat.id}')) as albums:
         for album_names in albums:
@@ -35,20 +35,23 @@ def callback_query(call):
                 album_name = album_names.name
                 bot.send_message(call.message.chat.id, f'Вы выбрали альбом {album_name}')
                 call.message.text = album_name
-        if xyi == 'Сохранить мои фото':
+        if command == 'Сохранить мои фото':
             download_to_album(call.message)
-        elif xyi == 'Получить мои фото':
+        elif command == 'Получить мои фото':
             upload_album(call.message)
-        elif xyi == 'Просмотреть мои фото':
-            watch_album(call)                       #TODO НЕ РАБОТАЕТ СУКА
-        elif xyi == 'Удалить альбом':
+        elif command == 'Просмотреть мои фото':
+            watch_album(call)
+        elif command == 'Удалить альбом':
             delete_album(call.message)
 
 
 @bot.message_handler(commands=['start'])
 def start(message):
-    add(types.KeyboardButton('Зарегестрироваться'))
-    bot_send_message(message, f'Привет, {message.from_user.first_name}, давай зарегестрируемся')
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    reg = types.KeyboardButton('Зарегестрироваться')
+    markup.add(reg)
+    bot.send_message(message.chat.id, f'Привет, {message.from_user.first_name}, давай зарегестрируемся',
+                     reply_markup=markup)
 
 
 @bot.message_handler(commands=['Создать_альбом'])
@@ -124,44 +127,20 @@ def upload_album(message):
 
 
 def delete_album(message):
-    if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{delete_album_name}')):
-        shutil.rmtree(Path('data', f'telegram-{message.chat.id}', f'{delete_album_name}'))
-        text = f'Альбом {delete_album_name} удалён'
+    path = (Path('data', f'telegram-{message.chat.id}', f'{album_name}'))
+    if album_name == 'Общий':
+        text = 'Нельзя удалить альбом "Общий"'
     else:
-        text = 'Такой альбом не существует'
+        if os.path.exists(Path('data', f'telegram-{message.chat.id}', f'{album_name}')):
+            filelist = glob.glob(os.path.join(path, "*"))
+            for removed_file in filelist:
+                os.remove(removed_file)
+            os.rmdir(path)
+            text = f'Альбом {album_name} удалён'
+        else:
+            text = 'Такой альбом не существует'
     add()
     bot_send_message(message, text)
-
-
-def watch_album(call):
-    if os.path.exists(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}')):
-        images = os.listdir(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}'))
-        count = len(images)
-        markup = InlineKeyboardMarkup()
-        page = 0
-        if count == 0:
-            bot_send_message(call.message, 'Альбом пуст')
-        elif count == 1:
-            markup.add(InlineKeyboardButton(text='Скрыть', callback_data='unseen'))
-            bot.send_photo(call.message.chat.id,
-                           photo=open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}',
-                                      f'{images[page]}'),
-                                      'rb'), reply_markup=markup)
-        else:
-            markup.add(InlineKeyboardButton(text='Скрыть', callback_data='unseen'))
-            markup.add(InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
-                       InlineKeyboardButton(text=f'Вперёд --->', callback_data="{\"method\":\"pagination\","
-                                                                               "\"NumberPage\": "
-                                                                               + str(page + 1) + ",\"CountPage\":" +
-                                                                               str(
-                                                                                count) + "}"))
-            bot.send_photo(call.message.chat.id,
-                           photo=open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}',
-                                      f'{images[page]}'),
-                                      'rb'), reply_markup=markup)
-    else:
-        bot_send_message(call.message, 'Такого альбома не существует')
-
 
 
 def download_to_album(message):
@@ -170,6 +149,164 @@ def download_to_album(message):
     else:
         add(types.KeyboardButton('Сохранить мои фото'))
         bot_send_message(message, 'Такого альбома не существует, проверте правильность ввода')
+
+
+def watch_album(call):
+    data = ''
+    images = os.listdir(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}'))
+    if call.data == ' ':
+        return
+
+    if not is_json(call.data):
+        count = len(images)
+        markup = InlineKeyboardMarkup()
+        page = 0
+        if count == 0:
+            bot_send_message(call.message, 'Альбом пуст')
+        elif count == 1:
+            markup.add(InlineKeyboardButton(text='Скрыть', callback_data="{\"method\":\"unseen\"}"))
+            markup.add(InlineKeyboardButton(text='Удалить фото', callback_data="{\"method\":\"delete\","
+                                                                               "\"NumberPage\":" + str(page) +
+                                                                               ",\"CountPage\":" + str(count) + "}"))
+            bot.send_photo(call.message.chat.id,
+                           photo=open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}',
+                                      f'{images[page]}'),
+                                      'rb'), reply_markup=markup)
+        else:
+            markup.add(InlineKeyboardButton(text='Скрыть', callback_data="{\"method\":\"unseen\"}"))
+            markup.add(InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
+                       InlineKeyboardButton(text=f'Вперёд --->', callback_data="{\"method\":\"pagination\","
+                                                                               "\"NumberPage\": "
+                                                                               + str(page + 1) + ",\"CountPage\":" +
+                                                                               str(
+                                                                                count) + "}"))
+            markup.add(InlineKeyboardButton(text='Удалить фото', callback_data="{\"method\":\"delete\","
+                                                                               "\"NumberPage\":" + str(page) +
+                                                                               ",\"CountPage\":" + str(count) + "}"))
+            bot.send_photo(call.message.chat.id,
+                           photo=open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}',
+                                      f'{images[page]}'),
+                                      'rb'), reply_markup=markup)
+    else:
+        data = json.loads(call.data)['method']
+
+    # Обработка кнопки - скрыть
+    if data == 'unseen':
+        bot.delete_message(call.message.chat.id, call.message.message_id)
+    # Обработка кнопок - вперед и назад
+    elif data == 'pagination':
+        json_string = json.loads(call.data)
+        count = json_string['CountPage']
+        page = json_string['NumberPage']
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton(text='Скрыть', callback_data="{\"method\":\"unseen\"}"))
+        # markup для первой страницы
+        if page == 0:
+            markup.add(InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
+                       InlineKeyboardButton(text=f'Вперёд --->',
+                                            callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
+                                                page + 1) + ",\"CountPage\":" + str(count) + "}"))
+            markup.add(InlineKeyboardButton(text='Удалить фото', callback_data="{\"method\":\"delete\","
+                                                                               "\"NumberPage\":" + str(page) +
+                                                                               ",\"CountPage\":" + str(count) + "}"))
+        # markup для второй страницы
+        elif page == count - 1:
+            markup.add(InlineKeyboardButton(text=f'<--- Назад',
+                                            callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
+                                                page - 1) + ",\"CountPage\":" + str(count) + "}"),
+                       InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '))
+            markup.add(InlineKeyboardButton(text='Удалить фото', callback_data="{\"method\":\"delete\","
+                                                                               "\"NumberPage\":" + str(page) +
+                                                                               ",\"CountPage\":" + str(count) + "}"))
+        # markup для остальных страниц
+        else:
+            markup.add(InlineKeyboardButton(text=f'<--- Назад',
+                                            callback_data="{\"method\":\"pagination\",\"NumberPage\":"
+                                                          + str(page - 1) + ",\"CountPage\":" + str(count) + "}"),
+                       InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
+                       InlineKeyboardButton(text=f'Вперёд --->',
+                                            callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
+                                                page + 1) + ",\"CountPage\":" + str(count) + "}"))
+            markup.add(InlineKeyboardButton(text='Удалить фото', callback_data="{\"method\":\"delete\","
+                                                                               "\"NumberPage\":" + str(page) +
+                                                                               ",\"CountPage\":" + str(count) + "}"))
+        img = open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'), 'rb')
+        bot.edit_message_media(media=telebot.types.InputMedia(media=img, caption=f"Фото номер {page}", type="photo"),
+                               reply_markup=markup, chat_id=call.message.chat.id, message_id=call.message.message_id)
+    #Удаление фото
+    elif data == 'delete':
+        markup = InlineKeyboardMarkup()
+        json_string = json.loads(call.data)
+        count = json_string['CountPage']
+        page = json_string['NumberPage']
+        markup.add(InlineKeyboardButton(text='Скрыть', callback_data="{\"method\":\"unseen\"}"))
+        if count == 1:
+            page = 0
+            os.remove(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'))
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+            bot.send_message(call.message.chat.id, 'Теперь этот альбом пуст')
+        elif count == 2:
+            if page == 0:
+                os.remove(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'))
+                count = count - 1
+                page = page + 1
+            elif page == 1:
+                os.remove(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'))
+                count = count - 1
+                page = page - 1
+            markup.add(InlineKeyboardButton(text='Удалить фото', callback_data="{\"method\":\"delete\","
+                                                                               "\"NumberPage\":" + str(page) +
+                                                                               ",\"CountPage\":" + str(count) + "}"))
+            img = open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'), 'rb')
+            bot.edit_message_media(
+                media=telebot.types.InputMedia(media=img, caption=f"Фото номер {page}", type="photo"),
+                reply_markup=markup, chat_id=call.message.chat.id, message_id=call.message.message_id)
+        elif count > 2:
+            if page == 0:
+                os.remove(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'))
+                count = count - 1
+                page = page + 1
+                markup.add(InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
+                           InlineKeyboardButton(text=f'Вперёд --->',
+                                                callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
+                                                    page + 1) + ",\"CountPage\":" + str(count) + "}"))
+            elif page == 1:
+                os.remove(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'))
+                page = page + 1
+                count = count - 1
+                markup.add(InlineKeyboardButton(text=f'<--- Назад',
+                                                callback_data="{\"method\":\"pagination\",\"NumberPage\":"
+                                                              + str(page - 1) + ",\"CountPage\":" + str(count) + "}"),
+                           InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
+                           InlineKeyboardButton(text=f'Вперёд --->',
+                                                callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
+                                                    page + 1) + ",\"CountPage\":" + str(count) + "}"))
+            elif page == count - 1:
+                os.remove(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'))
+                count = count - 1
+                page = page - 1
+                markup.add(InlineKeyboardButton(text=f'<--- Назад',
+                                                callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
+                                                    page - 1) + ",\"CountPage\":" + str(count) + "}"),
+                           InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '))
+            else:
+                os.remove(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'))
+                count = count - 1
+                page = page - 1
+                markup.add(InlineKeyboardButton(text=f'<--- Назад',
+                                                callback_data="{\"method\":\"pagination\",\"NumberPage\":"
+                                                              + str(page - 1) + ",\"CountPage\":" + str(count) + "}"),
+                           InlineKeyboardButton(text=f'{page}/{count - 1}', callback_data=f' '),
+                           InlineKeyboardButton(text=f'Вперёд --->',
+                                                callback_data="{\"method\":\"pagination\",\"NumberPage\":" + str(
+                                                    page + 1) + ",\"CountPage\":" + str(count) + "}"))
+            markup.add(InlineKeyboardButton(text='Удалить фото', callback_data="{\"method\":\"delete\","
+                                                                               "\"NumberPage\":" + str(page) +
+                                                                               ",\"CountPage\":" + str(count) + "}"))
+            img = open(Path('data', f'telegram-{call.message.chat.id}', f'{album_name}', f'{images[page]}'), 'rb')
+            bot.edit_message_media(
+                media=telebot.types.InputMedia(media=img, caption=f"Фото номер {page}", type="photo"),
+                reply_markup=markup, chat_id=call.message.chat.id, message_id=call.message.message_id)
 
 
 bot.polling(none_stop=True)
