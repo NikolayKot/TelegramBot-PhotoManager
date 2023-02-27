@@ -1,4 +1,4 @@
-# TelegramBot-PhotoManager
+# 📸 TelegramBot-PhotoManager
 
 This telegram bot is written in python and created to simplify the management of your photos.
 
